@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Candy counter</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fff4f7; --surface:#ffffff; --ink:#3a1f2d; --muted:#7d6472; --line:#f0d3de;
+  --pink:#e8457c; --mint:#1f9d7a; --sold:#e8457c; --left:#9ad9c3; --err:#b3261e; --errbg:#fde7e5;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1e1219; --surface:#2a1823; --ink:#fbe9f0; --muted:#c3a3b3; --line:#4a2d3d;
+    --pink:#ff6b9d; --mint:#5fd3ae; --sold:#ff6b9d; --left:#2f6b58; --err:#ffb4ab; --errbg:#4a1f1c;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1e1219; --surface:#2a1823; --ink:#fbe9f0; --muted:#c3a3b3; --line:#4a2d3d;
+  --pink:#ff6b9d; --mint:#5fd3ae; --sold:#ff6b9d; --left:#2f6b58; --err:#ffb4ab; --errbg:#4a1f1c;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+main{max-width:880px;margin:0 auto;padding:28px 18px 48px}
+h1{font-family:"Fredoka",system-ui,sans-serif;font-weight:600;font-size:clamp(2rem,6vw,3rem);margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 24px;max-width:52ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px}
+@media (max-width:700px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:20px}
+label{display:block;font-weight:600;margin-bottom:4px}
+.hint{display:block;font-size:.85rem;color:var(--muted);font-weight:400}
+.field{margin-bottom:16px}
+input{width:100%;font:inherit;font-size:1.1rem;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
+input:focus-visible,button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.actions{display:flex;gap:10px;margin-top:6px}
+button{font:inherit;font-weight:600;border-radius:999px;padding:10px 22px;cursor:pointer;border:1.5px solid var(--pink)}
+.primary{background:var(--pink);color:#fff}
+.ghost{background:transparent;color:var(--pink)}
+.result{min-height:150px}
+.status{border-radius:14px;padding:10px 14px;margin-bottom:14px;font-weight:600}
+.ok{background:color-mix(in srgb,var(--mint) 18%,transparent);color:var(--mint)}
+.bad{background:var(--errbg);color:var(--err)}
+.idle{color:var(--muted);font-weight:400;border:1.5px dashed var(--line)}
+.nums{display:flex;gap:28px;margin-bottom:16px}
+.nums b{display:block;font-family:"Fredoka",system-ui,sans-serif;font-size:2.4rem;line-height:1.1}
+.nums span{color:var(--muted);font-size:.9rem}
+.jar{display:flex;flex-wrap:wrap;gap:5px;padding:12px;border:1.5px solid var(--line);border-radius:16px 16px 28px 28px;background:var(--bg);min-height:60px}
+.c{width:14px;height:14px;border-radius:50%;background:var(--left)}
+.c.s{background:var(--sold)}
+.legend{display:flex;gap:16px;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Candy counter</h1>
+  <p class="sub">Enter your stock and a sale. A sale is accepted only when it is at least 1 and below the minimum.</p>
+  <div class="grid">
+    <section class="panel" aria-label="Sale details">
+      <div class="field"><label for="total">Candies available</label><input id="total" type="number" inputmode="numeric" min="0" step="1" value="100"></div>
+      <div class="field"><label for="sold">Candies to be sold</label><input id="sold" type="number" inputmode="numeric" step="1" value="10"></div>
+      <div class="field"><label for="min">Minimum number of candies<span class="hint">The sale must stay below this number.</span></label><input id="min" type="number" inputmode="numeric" step="1" value="20"></div>
+      <div class="actions"><button class="primary" id="go" type="button">Check sale</button><button class="ghost" id="reset" type="button">Reset</button></div>
+    </section>
+    <section class="panel result" aria-live="polite" aria-label="Result">
+      <div id="status" class="status idle">Enter the numbers and choose Check sale.</div>
+      <div class="nums"><div><b id="outSold">–</b><span>Candies sold</span></div><div><b id="outLeft">–</b><span>Candies left</span></div></div>
+      <div class="jar" id="jar"></div>
+      <div class="legend"><span><i style="background:var(--sold)"></i>Sold</span><span><i style="background:var(--left)"></i>Left</span></div>
+    </section>
+  </div>
+</main>
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i)};
+  var defaults={total:100,sold:10,min:20};
+  function num(id){var v=$(id).value.trim();return /^-?\d+$/.test(v)?parseInt(v,10):null}
+  function jar(total,sold){
+    var j=$('jar');j.innerHTML='';
+    var t=Math.max(0,Math.min(total,150)),s=Math.max(0,Math.min(sold,t));
+    for(var i=0;i<t;i++){var d=document.createElement('span');d.className='c'+(i<s?' s':'');j.appendChild(d)}
+  }
+  function run(){
+    var total=num('total'),sold=num('sold'),min=num('min');
+    var st=$('status');
+    if(total===null||sold===null||min===null){
+      st.className='status bad';st.textContent='Invalid input. Enter whole numbers in all three fields.';
+      $('outSold').textContent='–';$('outLeft').textContent='–';$('jar').innerHTML='';return;
+    }
+    // same rule as Python: sold in range(1, min)  ->  1 <= sold <= min-1
+    if(sold>=1&&sold<min){
+      st.className='status ok';st.textContent='Sale accepted.';
+      $('outSold').textContent=sold;$('outLeft').textContent=total-sold;jar(total,sold);
+    }else{
+      st.className='status bad';st.textContent='Invalid input. Candies to be sold must be at least 1 and less than '+min+'.';
+      $('outSold').textContent=0;$('outLeft').textContent=total;jar(total,0);
+    }
+  }
+  $('go').addEventListener('click',run);
+  ['total','sold','min'].forEach(function(id){$(id).addEventListener('keydown',function(e){if(e.key==='Enter')run()})});
+  $('reset').addEventListener('click',function(){
+    $('total').value=defaults.total;$('sold').value=defaults.sold;$('min').value=defaults.min;
+    $('status').className='status idle';$('status').textContent='Enter the numbers and choose Check sale.';
+    $('outSold').textContent='–';$('outLeft').textContent='–';$('jar').innerHTML='';
+  });
+})();
+</script>
+</body>
+</html>
